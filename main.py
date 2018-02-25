@@ -179,12 +179,15 @@ def train(train_loader, model, criterion, optimizer, epoch):
                    data_time=data_time, loss=losses, l2_loss=l2_losses, top1=top1))
         
         step = epoch * len(train_loader) + i
+        #print(type(step))
         writer.add_scalar('train/acc', prec1[0], step)
         writer.add_scalar('train/loss', loss.data[0], step)
         if args.l2_loss:
             writer.add_scalar('train/l2_loss', l2_loss.data[0], step)
         for name, param in model.named_parameters():
-            writer.add_histogram(name, param.clone().data.cpu().numpy(), step)
+            #print(name, param.data.cpu().numpy().dtype)
+            if name.find('batchnorm')==-1:
+                writer.add_histogram(name, param.data.cpu().numpy(), step)
 
 def validate(val_loader, model, criterion, multicrop=False):
     batch_time = AverageMeter()
@@ -299,7 +302,10 @@ class AverageMeter(object):
 def adjust_learning_rate(optimizer, epoch):
     """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
     if args.adam:
-        lr = (args.learning_rate * np.minimum(2 - 2*epoch/args.num_epochs, 1.))
+        if epoch<=args.step:
+            lr = args.learning_rate
+        else:
+            lr = args.learning_rate * (1. - (epoch-args.step)/(args.num_epochs-args.step))
     else:
         lr = args.learning_rate * (0.1 ** (epoch // args.step))
     for param_group in optimizer.state_dict()['param_groups']:
@@ -330,6 +336,7 @@ train_loader, val_loader, train_dataset = utils.get_train_valid_loader(args.trai
         num_workers=args.num_workers)
 test_loader, test_dataset = utils.get_test_loader(TEST_DIR, batch_size=args.batch_size, crop_size=args.crop_size, filtering=args.filtering, num_channels=args.num_channels, l2_loss=args.l2_loss, num_workers=args.num_workers)
 #val_loader, val_dataset = utils.get_val_loader(VAL_DIR, batch_size=args.batch_size, crop_size=args.crop_size, filtering=args.filtering, num_channels=args.num_channels, l2_loss=args.l2_loss)
+print(train_dataset.classes)
 
 
 print(args)
